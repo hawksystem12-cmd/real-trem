@@ -1,47 +1,72 @@
+import { useState, useRef } from "react";
+
 export default function Home() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const audioRef = useRef(null);
+  const bassRef = useRef(null);
+
+  const searchMusic = async () => {
+    if (!query) return;
+    const res = await fetch(`https://api.deezer.com/search?q=${query}`);
+    const data = await res.json();
+    setResults(data.data);
+  };
+
+  const playMusic = (preview) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    const audio = new Audio(preview);
+    audioRef.current = audio;
+
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const source = context.createMediaElementSource(audio);
+    const bass = context.createBiquadFilter();
+
+    bass.type = "lowshelf";
+    bass.frequency.value = 200;
+    bass.gain.value = 0;
+
+    bassRef.current = bass;
+
+    source.connect(bass);
+    bass.connect(context.destination);
+
+    audio.play();
+  };
+
+  const toggleBass = () => {
+    if (!bassRef.current) return;
+    bassRef.current.gain.value = bassRef.current.gain.value === 0 ? 15 : 0;
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
+    <div className="container">
+      <h1>Sua música favorita está no</h1>
+      <h1 className="highlight">SILVEIRA MÚSICAS</h1>
 
-      <h1 className="text-5xl font-bold text-gray-900">
-        Sua música favorita está no
-      </h1>
-
-      <h2 className="text-6xl font-bold text-purple-600 mt-4">
-        REAL TREM
-      </h2>
-
-      <p className="text-gray-600 mt-6 max-w-xl">
-        A maneira mais fácil de adicionar música ao seu servidor.
-        Busque, teste e copie o link em poucos cliques.
-      </p>
-
-      <div className="mt-10 flex w-full max-w-lg">
+      <div className="search-box">
         <input
-          className="w-full p-4 rounded-l-full shadow-lg outline-none"
           placeholder="Buscar música..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
         />
-        <button className="bg-purple-600 text-white px-6 rounded-r-full shadow-lg">
-          🔍
-        </button>
+        <button onClick={searchMusic}>Buscar</button>
       </div>
 
-      <div className="flex gap-12 mt-16 text-gray-800">
-        <div>
-          <h3 className="text-2xl font-bold">10K+</h3>
-          <p className="text-gray-500">MÚSICAS</p>
-        </div>
-
-        <div>
-          <h3 className="text-2xl font-bold">0.5s</h3>
-          <p className="text-gray-500">TEMPO DE BUSCA</p>
-        </div>
-
-        <div>
-          <h3 className="text-2xl font-bold">100%</h3>
-          <p className="text-gray-500">GRATUITO</p>
-        </div>
+      <div>
+        {results && results.map((music) => (
+          <div key={music.id} className="card">
+            <img src={music.album.cover_medium} width="100" />
+            <p><strong>{music.title}</strong></p>
+            <p>{music.artist.name}</p>
+            <button onClick={() => playMusic(music.preview)}>Play</button>
+            <button onClick={toggleBass}>Grave ON/OFF</button>
+          </div>
+        ))}
       </div>
-
     </div>
-  )
+  );
 }
